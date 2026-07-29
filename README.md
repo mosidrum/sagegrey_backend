@@ -22,13 +22,27 @@ cp .env.example .env
 
 ## Running with Docker (recommended)
 
-Starts the API on port 8000 and a Postgres database, with hot reload on file changes:
+Build the images (only needed the first time, or after changing the `Dockerfile`/dependencies):
 
 ```bash
-docker compose up --build
+npm run docker:build
+```
+
+Start the API on port 8000 and a Postgres database, with hot reload on file changes. This reuses the already-built image, so it starts fast:
+
+```bash
+npm run docker:up
 ```
 
 The API will be available at http://localhost:8000.
+
+Stop the containers and remove them along with the Postgres data volume:
+
+```bash
+npm run docker:down
+```
+
+Since `docker:down` only drops containers and volumes (not the built image), running `docker:up` again afterwards starts right up without rebuilding.
 
 ## Running locally (without Docker)
 
