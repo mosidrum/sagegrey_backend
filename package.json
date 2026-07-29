@@ -5,7 +5,8 @@
   "description": "Sagegrey backend API",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "dev": "docker compose up",
+    "dev:server": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest",
@@ -15,7 +16,6 @@
     "format": "prettier --write .",
     "knex": "knex --knexfile knexfile.ts",
     "docker:build": "docker compose build",
-    "docker:up": "docker compose up",
     "docker:down": "docker compose down --volumes"
   },
   "dependencies": {

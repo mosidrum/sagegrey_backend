@@ -20,7 +20,7 @@ Copy the example environment file and adjust values if needed:
 cp .env.example .env
 ```
 
-## Running with Docker (recommended)
+## Running in Docker
 
 Build the images (only needed the first time, or after changing the `Dockerfile`/dependencies):
 
@@ -31,7 +31,7 @@ npm run docker:build
 Start the API on port 8000 and a Postgres database, with hot reload on file changes. This reuses the already-built image, so it starts fast:
 
 ```bash
-npm run docker:up
+npm run dev
 ```
 
 The API will be available at http://localhost:8000.
@@ -42,15 +42,7 @@ Stop the containers and remove them along with the Postgres data volume:
 npm run docker:down
 ```
 
-Since `docker:down` only drops containers and volumes (not the built image), running `docker:up` again afterwards starts right up without rebuilding.
-
-## Running locally (without Docker)
-
-Requires a Postgres instance reachable via the settings in `.env`.
-
-```bash
-npm run dev
-```
+Since `docker:down` only drops containers and volumes (not the built image), running `npm run dev` again afterwards starts right up without rebuilding.
 
 ## Build & start (production)
 
