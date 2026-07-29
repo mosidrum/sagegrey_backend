@@ -9,3 +9,15 @@ describe('GET /', () => {
     expect(response.text).toBe('Hello World');
   });
 });
+
+describe('GET /unknown-route', () => {
+  it('returns a 404 with a consistent error response shape', async () => {
+    const response = await request(app).get('/unknown-route');
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      message: 'Route not found: GET /unknown-route',
+      data: null,
+    });
+  });
+});

@@ -9,4 +9,9 @@ export default tseslint.config(
   {
     ignores: ['dist', 'node_modules', 'coverage'],
   },
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
 );
