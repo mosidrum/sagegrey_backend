@@ -5,6 +5,7 @@ import logger from '../common/logger';
 import { fromMinorUnits, toMinorUnits } from '../common/money';
 import db from '../database/connection';
 import { Transaction, TransactionStatus, TransactionType } from '../models/transaction.model';
+import * as accountHistoryRepository from '../repositories/accountHistory.repository';
 import * as accountRepository from '../repositories/account.repository';
 import * as transactionRepository from '../repositories/transaction.repository';
 import * as accountService from './account.service';
@@ -75,6 +76,11 @@ export async function fund(
       if (!row) {
         throw new AppError(HTTP.INTERNAL_SERVER_ERROR, 'Failed to record the transaction.');
       }
+
+      await accountHistoryRepository.create(
+        { account_id: account.id, user_id: fundedByUserId, type: 'credit' },
+        trx,
+      );
 
       return row;
     });
@@ -149,6 +155,11 @@ export async function withdraw(
       if (!row) {
         throw new AppError(HTTP.INTERNAL_SERVER_ERROR, 'Failed to record the transaction.');
       }
+
+      await accountHistoryRepository.create(
+        { account_id: account.id, user_id: userId, type: 'debit' },
+        trx,
+      );
 
       return row;
     });
@@ -270,6 +281,15 @@ export async function transfer(
       if (!debitRow || !creditRow) {
         throw new AppError(HTTP.INTERNAL_SERVER_ERROR, 'Failed to record the transfer.');
       }
+
+      await accountHistoryRepository.create(
+        { account_id: source.id, user_id: userId, type: 'debit' },
+        trx,
+      );
+      await accountHistoryRepository.create(
+        { account_id: lockedDestination.id, user_id: userId, type: 'credit' },
+        trx,
+      );
 
       return { debit: debitRow, credit: creditRow };
     });

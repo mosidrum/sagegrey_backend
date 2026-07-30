@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import accountHistoryRoutes from './accountHistory.routes';
 import accountRoutes from './account.routes';
 import authRoutes from './auth.routes';
 import transactionRoutes from './transaction.routes';
@@ -14,5 +15,6 @@ router.use('/api/auth', authRoutes);
 router.use('/api/users', userRoutes);
 router.use('/api/accounts', accountRoutes);
 router.use('/api/transactions', transactionRoutes);
+router.use('/api/history', accountHistoryRoutes);
 
 export default router;
