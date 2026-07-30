@@ -14,12 +14,12 @@ export async function create(
   return transaction;
 }
 
-export function getById(id: number, executor: Executor = db): Promise<Transaction | undefined> {
+export function getById(id: string, executor: Executor = db): Promise<Transaction | undefined> {
   return executor<Transaction>(TABLE).where({ id }).first();
 }
 
 export function findByAccountId(
-  accountId: number,
+  accountId: string,
   executor: Executor = db,
 ): Promise<Transaction[]> {
   return executor<Transaction>(TABLE)
