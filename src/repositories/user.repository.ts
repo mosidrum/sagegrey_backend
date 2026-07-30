@@ -24,7 +24,10 @@ export function findByToken(token: string): Promise<User | undefined> {
   return db<User>(TABLE).where({ token }).first();
 }
 
-export function update(id: number, data: Partial<Pick<User, 'token'>>): Promise<number> {
+export function update(
+  id: number,
+  data: Partial<Pick<User, 'token' | 'pin_hash'>>,
+): Promise<number> {
   return db<User>(TABLE).where({ id }).update(data);
 }
 
