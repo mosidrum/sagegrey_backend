@@ -1,6 +1,8 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import path from 'path';
 import type { Knex } from 'knex';
+
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 export const connection = {
   host: process.env.DB_HOST,
