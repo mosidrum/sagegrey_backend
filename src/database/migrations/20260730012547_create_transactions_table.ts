@@ -2,7 +2,7 @@ import type { Knex } from 'knex';
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable('transactions', (table) => {
-    table.increments('id').primary();
+    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
     table
       .enu('type', ['funding', 'withdrawal', 'transfer_debit', 'transfer_credit'], {
         useNative: false,
@@ -10,18 +10,12 @@ export async function up(knex: Knex): Promise<void> {
       })
       .notNullable();
     table
-      .integer('account_id')
-      .unsigned()
+      .uuid('account_id')
       .notNullable()
       .references('id')
       .inTable('accounts')
       .onDelete('RESTRICT');
-    table
-      .integer('counterparty_account_id')
-      .unsigned()
-      .references('id')
-      .inTable('accounts')
-      .onDelete('RESTRICT');
+    table.uuid('counterparty_account_id').references('id').inTable('accounts').onDelete('RESTRICT');
     table.bigInteger('amount_minor').notNullable();
     table.bigInteger('balance_after_minor').notNullable();
     table.string('description');

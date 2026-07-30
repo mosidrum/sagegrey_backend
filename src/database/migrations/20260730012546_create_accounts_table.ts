@@ -2,14 +2,8 @@ import type { Knex } from 'knex';
 
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable('accounts', (table) => {
-    table.increments('id').primary();
-    table
-      .integer('user_id')
-      .unsigned()
-      .notNullable()
-      .references('id')
-      .inTable('users')
-      .onDelete('RESTRICT');
+    table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
+    table.uuid('user_id').notNullable().references('id').inTable('users').onDelete('RESTRICT');
     table.string('account_number', 10).notNullable().unique();
     table.bigInteger('balance_minor').notNullable().defaultTo(0);
     table.boolean('is_locked').notNullable().defaultTo(false);
