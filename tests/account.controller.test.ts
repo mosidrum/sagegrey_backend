@@ -11,15 +11,14 @@ jest.mock('../src/services/account.service');
 const mockedAuthService = authService as jest.Mocked<typeof authService>;
 const mockedAccountService = accountService as jest.Mocked<typeof accountService>;
 
-const safeUser = {
-  id: 1,
+const authUser = {
+  id: '11111111-1111-4111-8111-111111111111',
   email: 'test@example.com',
   full_name: 'Test User',
-  created_at: new Date('2026-01-01T00:00:00.000Z'),
 };
 
 const accountSummary = {
-  id: 10,
+  id: '22222222-2222-4222-8222-222222222222',
   accountNumber: '1234567890',
   balance: '0.00',
   isLocked: false,
@@ -27,7 +26,7 @@ const accountSummary = {
 };
 
 beforeEach(() => {
-  mockedAuthService.findByToken.mockResolvedValue(safeUser);
+  mockedAuthService.verifyToken.mockReturnValue(authUser);
 });
 
 describe('POST /api/accounts', () => {
@@ -45,7 +44,7 @@ describe('POST /api/accounts', () => {
 
     expect(response.status).toBe(HTTP.CREATED);
     expect(response.body.message).toBe('Account created successfully');
-    expect(mockedAccountService.createAccount).toHaveBeenCalledWith(safeUser.id);
+    expect(mockedAccountService.createAccount).toHaveBeenCalledWith(authUser.id);
   });
 });
 
@@ -58,14 +57,14 @@ describe('GET /api/accounts', () => {
       .set('Authorization', 'Bearer valid-token');
 
     expect(response.status).toBe(HTTP.OK);
-    expect(mockedAccountService.getAccountsForUser).toHaveBeenCalledWith(safeUser.id);
+    expect(mockedAccountService.getAccountsForUser).toHaveBeenCalledWith(authUser.id);
   });
 });
 
 describe('GET /api/accounts/:id/balance', () => {
-  it('returns 400 without calling the service for a non-numeric id', async () => {
+  it('returns 400 without calling the service for a non-uuid id', async () => {
     const response = await request(app)
-      .get('/api/accounts/not-a-number/balance')
+      .get('/api/accounts/not-a-uuid/balance')
       .set('Authorization', 'Bearer valid-token');
 
     expect(response.status).toBe(HTTP.BAD_REQUEST);
@@ -76,12 +75,12 @@ describe('GET /api/accounts/:id/balance', () => {
     mockedAccountService.getBalance.mockResolvedValue(accountSummary);
 
     const response = await request(app)
-      .get('/api/accounts/10/balance')
+      .get(`/api/accounts/${accountSummary.id}/balance`)
       .set('Authorization', 'Bearer valid-token');
 
     expect(response.status).toBe(HTTP.OK);
     expect(response.body.message).toBe('Balance retrieved successfully');
-    expect(mockedAccountService.getBalance).toHaveBeenCalledWith(safeUser.id, 10);
+    expect(mockedAccountService.getBalance).toHaveBeenCalledWith(authUser.id, accountSummary.id);
   });
 
   it('propagates a 403 when the account is not owned by the caller', async () => {
@@ -90,7 +89,7 @@ describe('GET /api/accounts/:id/balance', () => {
     );
 
     const response = await request(app)
-      .get('/api/accounts/10/balance')
+      .get(`/api/accounts/${accountSummary.id}/balance`)
       .set('Authorization', 'Bearer valid-token');
 
     expect(response.status).toBe(HTTP.FORBIDDEN);
@@ -102,7 +101,7 @@ describe('GET /api/accounts/:id/balance', () => {
     );
 
     const response = await request(app)
-      .get('/api/accounts/999/balance')
+      .get('/api/accounts/33333333-3333-4333-8333-333333333333/balance')
       .set('Authorization', 'Bearer valid-token');
 
     expect(response.status).toBe(HTTP.NOT_FOUND);
@@ -114,12 +113,12 @@ describe('POST /api/accounts/:id/lock', () => {
     mockedAccountService.lockAccount.mockResolvedValue({ ...accountSummary, isLocked: true });
 
     const response = await request(app)
-      .post('/api/accounts/10/lock')
+      .post(`/api/accounts/${accountSummary.id}/lock`)
       .set('Authorization', 'Bearer valid-token');
 
     expect(response.status).toBe(HTTP.OK);
     expect(response.body.message).toBe('Account locked successfully');
-    expect(mockedAccountService.lockAccount).toHaveBeenCalledWith(safeUser.id, 10);
+    expect(mockedAccountService.lockAccount).toHaveBeenCalledWith(authUser.id, accountSummary.id);
   });
 });
 
@@ -128,11 +127,11 @@ describe('POST /api/accounts/:id/unlock', () => {
     mockedAccountService.unlockAccount.mockResolvedValue(accountSummary);
 
     const response = await request(app)
-      .post('/api/accounts/10/unlock')
+      .post(`/api/accounts/${accountSummary.id}/unlock`)
       .set('Authorization', 'Bearer valid-token');
 
     expect(response.status).toBe(HTTP.OK);
     expect(response.body.message).toBe('Account unlocked successfully');
-    expect(mockedAccountService.unlockAccount).toHaveBeenCalledWith(safeUser.id, 10);
+    expect(mockedAccountService.unlockAccount).toHaveBeenCalledWith(authUser.id, accountSummary.id);
   });
 });

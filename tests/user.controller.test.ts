@@ -11,11 +11,10 @@ jest.mock('../src/services/user.service');
 const mockedAuthService = authService as jest.Mocked<typeof authService>;
 const mockedUserService = userService as jest.Mocked<typeof userService>;
 
-const safeUser = {
-  id: 1,
+const authUser = {
+  id: '11111111-1111-4111-8111-111111111111',
   email: 'test@example.com',
   full_name: 'Test User',
-  created_at: new Date('2026-01-01T00:00:00.000Z'),
 };
 
 describe('PUT /api/users/pin', () => {
@@ -26,7 +25,7 @@ describe('PUT /api/users/pin', () => {
   });
 
   it('returns 400 without calling the service when the PIN is not 4 digits', async () => {
-    mockedAuthService.findByToken.mockResolvedValue(safeUser);
+    mockedAuthService.verifyToken.mockReturnValue(authUser);
 
     const response = await request(app)
       .put('/api/users/pin')
@@ -38,7 +37,7 @@ describe('PUT /api/users/pin', () => {
   });
 
   it('sets the PIN and returns 200 on success', async () => {
-    mockedAuthService.findByToken.mockResolvedValue(safeUser);
+    mockedAuthService.verifyToken.mockReturnValue(authUser);
     mockedUserService.setPin.mockResolvedValue(undefined);
 
     const response = await request(app)
@@ -48,11 +47,11 @@ describe('PUT /api/users/pin', () => {
 
     expect(response.status).toBe(HTTP.OK);
     expect(response.body.message).toBe('Transaction PIN set successfully');
-    expect(mockedUserService.setPin).toHaveBeenCalledWith(safeUser.id, '5678', '1234');
+    expect(mockedUserService.setPin).toHaveBeenCalledWith(authUser.id, '5678', '1234');
   });
 
   it('propagates a 401 from the service when the current PIN is incorrect', async () => {
-    mockedAuthService.findByToken.mockResolvedValue(safeUser);
+    mockedAuthService.verifyToken.mockReturnValue(authUser);
     mockedUserService.setPin.mockRejectedValue(
       new AppError(HTTP.UNAUTHORIZED, 'Your current transaction PIN is incorrect.'),
     );

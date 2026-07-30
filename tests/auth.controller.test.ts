@@ -9,11 +9,13 @@ jest.mock('../src/services/auth.service');
 const mockedAuthService = authService as jest.Mocked<typeof authService>;
 
 const safeUser = {
-  id: 1,
+  id: '11111111-1111-4111-8111-111111111111',
   email: 'test@example.com',
   full_name: 'Test User',
   created_at: new Date('2026-01-01T00:00:00.000Z'),
 };
+
+const authUser = { id: safeUser.id, email: safeUser.email, full_name: safeUser.full_name };
 
 describe('POST /api/auth/signup', () => {
   it('returns 201 with the created user and token', async () => {
@@ -105,18 +107,20 @@ describe('GET /api/auth/me', () => {
   });
 
   it('returns 200 with the current user for a valid token', async () => {
-    mockedAuthService.findByToken.mockResolvedValue(safeUser);
+    mockedAuthService.verifyToken.mockReturnValue(authUser);
 
     const response = await request(app)
       .get('/api/auth/me')
       .set('Authorization', 'Bearer valid-token');
 
     expect(response.status).toBe(HTTP.OK);
-    expect(response.body.data.email).toBe(safeUser.email);
+    expect(response.body.data.email).toBe(authUser.email);
   });
 
   it('returns 401 for an unrecognized token', async () => {
-    mockedAuthService.findByToken.mockResolvedValue(undefined);
+    mockedAuthService.verifyToken.mockImplementation(() => {
+      throw new AppError(HTTP.UNAUTHORIZED, 'Invalid or expired token');
+    });
 
     const response = await request(app).get('/api/auth/me').set('Authorization', 'Bearer bogus');
 
@@ -131,14 +135,14 @@ describe('POST /api/auth/logout', () => {
   });
 
   it('returns 200 and calls the service when authenticated', async () => {
-    mockedAuthService.findByToken.mockResolvedValue(safeUser);
-    mockedAuthService.logout.mockResolvedValue(undefined);
+    mockedAuthService.verifyToken.mockReturnValue(authUser);
+    mockedAuthService.logout.mockReturnValue(undefined);
 
     const response = await request(app)
       .post('/api/auth/logout')
       .set('Authorization', 'Bearer valid-token');
 
     expect(response.status).toBe(HTTP.OK);
-    expect(mockedAuthService.logout).toHaveBeenCalledWith(safeUser.id);
+    expect(mockedAuthService.logout).toHaveBeenCalledWith(authUser.id);
   });
 });

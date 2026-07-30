@@ -4,7 +4,7 @@ import * as authService from '../../src/services/auth.service';
 import * as userService from '../../src/services/user.service';
 import { db, resetDb } from '../setup/testDb';
 
-async function createUser(): Promise<number> {
+async function createUser(): Promise<string> {
   const { user } = await authService.signup('Test User', 'test@example.com', 'password123');
   return user.id;
 }

@@ -13,8 +13,8 @@ async function createFundedAccount(
   email: string,
   openingBalance: string,
 ): Promise<{
-  userId: number;
-  accountId: number;
+  userId: string;
+  accountId: string;
   accountNumber: string;
 }> {
   const { user } = await authService.signup('Test User', email, 'password123');

@@ -6,7 +6,7 @@ import * as accountService from '../../src/services/account.service';
 import * as authService from '../../src/services/auth.service';
 import { db, resetDb } from '../setup/testDb';
 
-async function createUser(email: string): Promise<number> {
+async function createUser(email: string): Promise<string> {
   const { user } = await authService.signup('Test User', email, 'password123');
   return user.id;
 }
@@ -52,9 +52,9 @@ describe('ownership checks', () => {
   it('throws a 404 when the account does not exist', async () => {
     const userId = await createUser('owner@example.com');
 
-    await expect(accountService.getBalance(userId, 999999)).rejects.toEqual(
-      new AppError(HTTP.NOT_FOUND, 'Account not found.'),
-    );
+    await expect(
+      accountService.getBalance(userId, '99999999-9999-4999-8999-999999999999'),
+    ).rejects.toEqual(new AppError(HTTP.NOT_FOUND, 'Account not found.'));
   });
 
   it('throws a 403 when the account belongs to another user', async () => {
