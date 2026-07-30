@@ -36,6 +36,18 @@ describe('PUT /api/users/pin', () => {
     expect(mockedUserService.setPin).not.toHaveBeenCalled();
   });
 
+  it('returns 400 without calling the service when currentPin is missing', async () => {
+    mockedAuthService.verifyToken.mockReturnValue(authUser);
+
+    const response = await request(app)
+      .put('/api/users/pin')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ pin: '5678' });
+
+    expect(response.status).toBe(HTTP.BAD_REQUEST);
+    expect(mockedUserService.setPin).not.toHaveBeenCalled();
+  });
+
   it('sets the PIN and returns 200 on success', async () => {
     mockedAuthService.verifyToken.mockReturnValue(authUser);
     mockedUserService.setPin.mockResolvedValue(undefined);

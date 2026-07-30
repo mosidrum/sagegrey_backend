@@ -11,4 +11,4 @@ export type SafeUser = Pick<User, 'id' | 'email' | 'full_name' | 'created_at'>;
 
 export type AuthUser = Pick<User, 'id' | 'email' | 'full_name'>;
 
-export type NewUser = Pick<User, 'email' | 'password_hash' | 'full_name'>;
+export type NewUser = Pick<User, 'email' | 'password_hash' | 'full_name' | 'pin_hash'>;

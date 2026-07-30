@@ -5,6 +5,7 @@ import { HTTP } from '../common/http';
 import logger from '../common/logger';
 import { AuthUser, SafeUser, User } from '../models/user.model';
 import * as userRepository from '../repositories/user.repository';
+import * as userService from './user.service';
 
 const SALT_ROUNDS = 10;
 const UNIQUE_VIOLATION = '23505';
@@ -41,13 +42,17 @@ export async function signup(
   email: string,
   password: string,
 ): Promise<{ user: SafeUser; token: string }> {
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const [passwordHash, pinHash] = await Promise.all([
+    bcrypt.hash(password, SALT_ROUNDS),
+    userService.hashDefaultPin(),
+  ]);
 
   try {
     const user = await userRepository.create({
       full_name: fullName,
       email,
       password_hash: passwordHash,
+      pin_hash: pinHash,
     });
 
     if (!user) {

@@ -5,6 +5,11 @@ import logger from '../common/logger';
 import * as userRepository from '../repositories/user.repository';
 
 const SALT_ROUNDS = 10;
+const DEFAULT_PIN = '0000';
+
+export async function hashDefaultPin(): Promise<string> {
+  return bcrypt.hash(DEFAULT_PIN, SALT_ROUNDS);
+}
 
 export async function setPin(userId: string, pin: string, currentPin?: string): Promise<void> {
   const user = await userRepository.getById(userId);
@@ -34,6 +39,13 @@ export async function setPin(userId: string, pin: string, currentPin?: string): 
 }
 
 export async function verifyPin(userId: string, pin: string): Promise<void> {
+  if (pin === DEFAULT_PIN) {
+    throw new AppError(
+      HTTP.BAD_REQUEST,
+      'Please set your transaction PIN before performing this action.',
+    );
+  }
+
   const user = await userRepository.getById(userId);
   if (!user?.pin_hash) {
     throw new AppError(

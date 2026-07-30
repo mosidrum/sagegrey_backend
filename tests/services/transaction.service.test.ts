@@ -8,6 +8,7 @@ import * as transactionRepository from '../../src/repositories/transaction.repos
 import { db, resetDb } from '../setup/testDb';
 
 const PIN = '1234';
+const DEFAULT_PIN = '0000';
 
 async function createFundedAccount(
   email: string,
@@ -18,7 +19,7 @@ async function createFundedAccount(
   accountNumber: string;
 }> {
   const { user } = await authService.signup('Test User', email, 'password123');
-  await userService.setPin(user.id, PIN);
+  await userService.setPin(user.id, PIN, DEFAULT_PIN);
   const account = await accountService.createAccount(user.id);
 
   if (openingBalance !== '0.00') {
@@ -100,12 +101,14 @@ describe('withdraw', () => {
     expect(balance.balance).toBe('100.00');
   });
 
-  it('rejects a withdrawal when the PIN has not been set', async () => {
+  it('rejects a withdrawal while the PIN is still the default 0000', async () => {
     const { user } = await authService.signup('Test User', 'nopin@example.com', 'password123');
     const account = await accountService.createAccount(user.id);
     await transactionService.fund(user.id, account.id, '100.00');
 
-    await expect(transactionService.withdraw(user.id, account.id, '10.00', PIN)).rejects.toEqual(
+    await expect(
+      transactionService.withdraw(user.id, account.id, '10.00', DEFAULT_PIN),
+    ).rejects.toEqual(
       new AppError(
         HTTP.BAD_REQUEST,
         'Please set your transaction PIN before performing this action.',
@@ -119,7 +122,7 @@ describe('withdraw', () => {
   it('rejects a withdrawal with an incorrect PIN without mutating the balance', async () => {
     const { userId, accountId } = await createFundedAccount('owner@example.com', '100.00');
 
-    await expect(transactionService.withdraw(userId, accountId, '10.00', '0000')).rejects.toEqual(
+    await expect(transactionService.withdraw(userId, accountId, '10.00', '9999')).rejects.toEqual(
       new AppError(HTTP.UNAUTHORIZED, 'Incorrect transaction PIN.'),
     );
 
