@@ -15,7 +15,10 @@ const logger = winston.createLogger({
     errors({ stack: true }),
     timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     colorize({ all: true }),
-    printf(({ timestamp: ts, level, message, stack }) => `${ts} [${level}] ${stack ?? message}`),
+    printf(({ timestamp: ts, level, message, stack, ...meta }) => {
+      const context = Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
+      return `${ts} [${level}] ${stack ?? message}${context}`;
+    }),
   ),
   transports: [new winston.transports.Console()],
 }) as AppLogger;
