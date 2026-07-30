@@ -11,6 +11,7 @@ const mockedAuthService = authService as jest.Mocked<typeof authService>;
 const safeUser = {
   id: 1,
   email: 'test@example.com',
+  full_name: 'Test User',
   created_at: new Date('2026-01-01T00:00:00.000Z'),
 };
 
@@ -18,9 +19,11 @@ describe('POST /api/auth/signup', () => {
   it('returns 201 with the created user and token', async () => {
     mockedAuthService.signup.mockResolvedValue({ user: safeUser, token: 'abc123' });
 
-    const response = await request(app)
-      .post('/api/auth/signup')
-      .send({ email: 'test@example.com', password: 'supersecret' });
+    const response = await request(app).post('/api/auth/signup').send({
+      fullName: 'Test User',
+      email: 'test@example.com',
+      password: 'supersecret',
+    });
 
     expect(response.status).toBe(HTTP.CREATED);
     expect(response.body).toEqual({
@@ -30,13 +33,39 @@ describe('POST /api/auth/signup', () => {
         token: 'abc123',
       },
     });
-    expect(mockedAuthService.signup).toHaveBeenCalledWith('test@example.com', 'supersecret');
+    expect(mockedAuthService.signup).toHaveBeenCalledWith(
+      'Test User',
+      'test@example.com',
+      'supersecret',
+    );
+  });
+
+  it('returns 400 without calling the service when the full name is missing', async () => {
+    const response = await request(app)
+      .post('/api/auth/signup')
+      .send({ email: 'test@example.com', password: 'supersecret' });
+
+    expect(response.status).toBe(HTTP.BAD_REQUEST);
+    expect(mockedAuthService.signup).not.toHaveBeenCalled();
   });
 
   it('returns 400 without calling the service when the password is too short', async () => {
-    const response = await request(app)
-      .post('/api/auth/signup')
-      .send({ email: 'test@example.com', password: 'short' });
+    const response = await request(app).post('/api/auth/signup').send({
+      fullName: 'Test User',
+      email: 'test@example.com',
+      password: 'short',
+    });
+
+    expect(response.status).toBe(HTTP.BAD_REQUEST);
+    expect(mockedAuthService.signup).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 without calling the service when the email is invalid', async () => {
+    const response = await request(app).post('/api/auth/signup').send({
+      fullName: 'Test User',
+      email: 'not-an-email',
+      password: 'supersecret',
+    });
 
     expect(response.status).toBe(HTTP.BAD_REQUEST);
     expect(mockedAuthService.signup).not.toHaveBeenCalled();
