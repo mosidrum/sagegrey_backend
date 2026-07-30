@@ -1,8 +1,7 @@
 export interface User {
-  id: number;
+  id: string;
   email: string;
   password_hash: string;
-  token: string | null;
   created_at: Date;
   full_name: string;
   pin_hash: string | null;
@@ -10,4 +9,6 @@ export interface User {
 
 export type SafeUser = Pick<User, 'id' | 'email' | 'full_name' | 'created_at'>;
 
-export type NewUser = Pick<User, 'email' | 'password_hash' | 'token' | 'full_name'>;
+export type AuthUser = Pick<User, 'id' | 'email' | 'full_name'>;
+
+export type NewUser = Pick<User, 'email' | 'password_hash' | 'full_name'>;

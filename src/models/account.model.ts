@@ -1,6 +1,6 @@
 export interface Account {
-  id: number;
-  user_id: number;
+  id: string;
+  user_id: string;
   account_number: string;
   balance_minor: string;
   is_locked: boolean;

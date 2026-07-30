@@ -3,10 +3,10 @@ export type TransactionType = 'funding' | 'withdrawal' | 'transfer_debit' | 'tra
 export type TransactionStatus = 'pending' | 'completed' | 'failed';
 
 export interface Transaction {
-  id: number;
+  id: string;
   type: TransactionType;
-  account_id: number;
-  counterparty_account_id: number | null;
+  account_id: string;
+  counterparty_account_id: string | null;
   amount_minor: string;
   balance_after_minor: string;
   description: string | null;
