@@ -1,20 +1,30 @@
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { AppError } from '../common/errors';
 import { HTTP } from '../common/http';
 import logger from '../common/logger';
-import { SafeUser, User } from '../models/user.model';
+import { AuthUser, SafeUser, User } from '../models/user.model';
 import * as userRepository from '../repositories/user.repository';
 
 const SALT_ROUNDS = 10;
 const UNIQUE_VIOLATION = '23505';
+const JWT_SECRET = process.env.JWT_SECRET as string;
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN ?? '7d') as jwt.SignOptions['expiresIn'];
 
 function toSafeUser(user: User): SafeUser {
-  return { id: user.id, email: user.email, full_name: user.full_name, created_at: user.created_at };
+  return {
+    id: user.id,
+    email: user.email,
+    full_name: user.full_name,
+    created_at: user.created_at,
+  };
 }
 
-function generateToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+function generateToken(user: User): string {
+  return jwt.sign({ email: user.email, name: user.full_name }, JWT_SECRET, {
+    subject: user.id,
+    expiresIn: JWT_EXPIRES_IN,
+  });
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -32,14 +42,12 @@ export async function signup(
   password: string,
 ): Promise<{ user: SafeUser; token: string }> {
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const token = generateToken();
 
   try {
     const user = await userRepository.create({
       full_name: fullName,
       email,
       password_hash: passwordHash,
-      token,
     });
 
     if (!user) {
@@ -47,7 +55,7 @@ export async function signup(
     }
 
     logger.INFO('User registered', { userId: user.id });
-    return { user: toSafeUser(user), token };
+    return { user: toSafeUser(user), token: generateToken(user) };
   } catch (error) {
     if (isUniqueViolation(error)) {
       throw new AppError(HTTP.CONFLICT, 'Email is already registered');
@@ -72,19 +80,31 @@ export async function login(
     throw new AppError(HTTP.UNAUTHORIZED, 'Invalid email or password');
   }
 
-  const token = generateToken();
-  await userRepository.update(user.id, { token });
-
   logger.INFO('User logged in', { userId: user.id });
-  return { user: toSafeUser(user), token };
+  return { user: toSafeUser(user), token: generateToken(user) };
 }
 
-export async function logout(userId: number): Promise<void> {
-  await userRepository.update(userId, { token: null });
+export function logout(userId: string): void {
   logger.INFO('User logged out', { userId });
 }
 
-export async function findByToken(token: string): Promise<SafeUser | undefined> {
-  const user = await userRepository.findByToken(token);
-  return user ? toSafeUser(user) : undefined;
+export function verifyToken(token: string): AuthUser {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    if (
+      typeof decoded !== 'object' ||
+      decoded === null ||
+      typeof decoded.sub !== 'string' ||
+      typeof decoded.email !== 'string' ||
+      typeof decoded.name !== 'string'
+    ) {
+      throw new Error('Malformed token payload');
+    }
+
+    return { id: decoded.sub, email: decoded.email, full_name: decoded.name };
+  } catch {
+    logger.WARN('Failed authentication: invalid or expired token');
+    throw new AppError(HTTP.UNAUTHORIZED, 'Invalid or expired token');
+  }
 }
