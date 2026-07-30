@@ -11,10 +11,10 @@ import * as accountService from './account.service';
 import * as userService from './user.service';
 
 export interface TransactionRecord {
-  id: number;
+  id: string;
   type: TransactionType;
-  accountId: number;
-  counterpartyAccountId: number | null;
+  accountId: string;
+  counterpartyAccountId: string | null;
   amount: string;
   balanceAfter: string;
   description: string | null;
@@ -39,8 +39,8 @@ function toTransactionRecord(row: Transaction): TransactionRecord {
 }
 
 export async function fund(
-  fundedByUserId: number,
-  accountId: number,
+  fundedByUserId: string,
+  accountId: string,
   amount: string,
   description?: string,
 ): Promise<TransactionRecord> {
@@ -97,8 +97,8 @@ export async function fund(
 }
 
 export async function withdraw(
-  userId: number,
-  accountId: number,
+  userId: string,
+  accountId: string,
   amount: string,
   pin: string,
   description?: string,
@@ -171,8 +171,8 @@ export async function withdraw(
 }
 
 export async function transfer(
-  userId: number,
-  sourceAccountId: number,
+  userId: string,
+  sourceAccountId: string,
   destinationAccountNumber: string,
   amount: string,
   pin: string,
@@ -294,8 +294,8 @@ export async function transfer(
 }
 
 export async function listTransactions(
-  userId: number,
-  accountId: number,
+  userId: string,
+  accountId: string,
 ): Promise<TransactionRecord[]> {
   const account = await accountService.getOwnedAccount(userId, accountId);
   const rows = await transactionRepository.findByAccountId(account.id);

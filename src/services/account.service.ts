@@ -10,7 +10,7 @@ const MAX_ACCOUNT_NUMBER_ATTEMPTS = 5;
 const UNIQUE_VIOLATION = '23505';
 
 export interface AccountSummary {
-  id: number;
+  id: string;
   accountNumber: string;
   balance: string;
   isLocked: boolean;
@@ -36,7 +36,7 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
-export async function createAccount(userId: number): Promise<AccountSummary> {
+export async function createAccount(userId: string): Promise<AccountSummary> {
   for (let attempt = 1; attempt <= MAX_ACCOUNT_NUMBER_ATTEMPTS; attempt += 1) {
     const accountNumber = generateAccountNumber();
 
@@ -69,12 +69,12 @@ export async function createAccount(userId: number): Promise<AccountSummary> {
   );
 }
 
-export async function getAccountsForUser(userId: number): Promise<AccountSummary[]> {
+export async function getAccountsForUser(userId: string): Promise<AccountSummary[]> {
   const accounts = await accountRepository.findByUserId(userId);
   return accounts.map(toAccountSummary);
 }
 
-export async function getOwnedAccount(userId: number, accountId: number): Promise<Account> {
+export async function getOwnedAccount(userId: string, accountId: string): Promise<Account> {
   const account = await accountRepository.getById(accountId);
 
   if (!account) {
@@ -88,12 +88,12 @@ export async function getOwnedAccount(userId: number, accountId: number): Promis
   return account;
 }
 
-export async function getBalance(userId: number, accountId: number): Promise<AccountSummary> {
+export async function getBalance(userId: string, accountId: string): Promise<AccountSummary> {
   const account = await getOwnedAccount(userId, accountId);
   return toAccountSummary(account);
 }
 
-export async function lockAccount(userId: number, accountId: number): Promise<AccountSummary> {
+export async function lockAccount(userId: string, accountId: string): Promise<AccountSummary> {
   const account = await getOwnedAccount(userId, accountId);
 
   if (!account.is_locked) {
@@ -104,7 +104,7 @@ export async function lockAccount(userId: number, accountId: number): Promise<Ac
   return { ...toAccountSummary(account), isLocked: true };
 }
 
-export async function unlockAccount(userId: number, accountId: number): Promise<AccountSummary> {
+export async function unlockAccount(userId: string, accountId: string): Promise<AccountSummary> {
   const account = await getOwnedAccount(userId, accountId);
 
   if (account.is_locked) {

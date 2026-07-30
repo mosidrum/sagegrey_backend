@@ -6,7 +6,7 @@ import * as userRepository from '../repositories/user.repository';
 
 const SALT_ROUNDS = 10;
 
-export async function setPin(userId: number, pin: string, currentPin?: string): Promise<void> {
+export async function setPin(userId: string, pin: string, currentPin?: string): Promise<void> {
   const user = await userRepository.getById(userId);
   if (!user) {
     throw new AppError(HTTP.NOT_FOUND, 'User not found.');
@@ -33,7 +33,7 @@ export async function setPin(userId: number, pin: string, currentPin?: string): 
   logger.INFO('Transaction PIN set', { userId });
 }
 
-export async function verifyPin(userId: number, pin: string): Promise<void> {
+export async function verifyPin(userId: string, pin: string): Promise<void> {
   const user = await userRepository.getById(userId);
   if (!user?.pin_hash) {
     throw new AppError(
