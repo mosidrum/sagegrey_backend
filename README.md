@@ -45,5 +45,3 @@ npm run docker:down
 ```bash
 docker compose exec gome-api npm test
 ```
-
-For a full technical walkthrough of the codebase, see [read.md](read.md).
