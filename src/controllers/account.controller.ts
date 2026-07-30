@@ -14,19 +14,19 @@ export const listAccounts: RequestHandler = asyncHandler(async (req, res) => {
 });
 
 export const getBalance: RequestHandler = asyncHandler(async (req, res) => {
-  const accountId = Number(req.params.id);
+  const accountId = req.params.id!;
   const account = await accountService.getBalance(req.user!.id, accountId);
   res.success(account, 'Balance retrieved successfully');
 });
 
 export const lockAccount: RequestHandler = asyncHandler(async (req, res) => {
-  const accountId = Number(req.params.id);
+  const accountId = req.params.id!;
   const account = await accountService.lockAccount(req.user!.id, accountId);
   res.success(account, 'Account locked successfully');
 });
 
 export const unlockAccount: RequestHandler = asyncHandler(async (req, res) => {
-  const accountId = Number(req.params.id);
+  const accountId = req.params.id!;
   const account = await accountService.unlockAccount(req.user!.id, accountId);
   res.success(account, 'Account unlocked successfully');
 });
