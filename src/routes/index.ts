@@ -13,6 +13,6 @@ router.get('/', (_req, res) => {
 router.use('/api/auth', authRoutes);
 router.use('/api/users', userRoutes);
 router.use('/api/accounts', accountRoutes);
-router.use('/api/accounts', transactionRoutes);
+router.use('/api/transactions', transactionRoutes);
 
 export default router;

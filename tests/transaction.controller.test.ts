@@ -36,10 +36,10 @@ beforeEach(() => {
   mockedAuthService.verifyToken.mockReturnValue(authUser);
 });
 
-describe('POST /api/accounts/:id/fund', () => {
+describe('POST /api/transactions/:id/fund', () => {
   it('returns 400 without calling the service for an invalid amount', async () => {
     const response = await request(app)
-      .post(`/api/accounts/${accountId}/fund`)
+      .post(`/api/transactions/${accountId}/fund`)
       .set('Authorization', 'Bearer valid-token')
       .send({ amount: 'not-a-number' });
 
@@ -51,7 +51,7 @@ describe('POST /api/accounts/:id/fund', () => {
     mockedTransactionService.fund.mockResolvedValue(transactionRecord);
 
     const response = await request(app)
-      .post(`/api/accounts/${accountId}/fund`)
+      .post(`/api/transactions/${accountId}/fund`)
       .set('Authorization', 'Bearer valid-token')
       .send({ amount: '50.00', description: 'top up' });
 
@@ -66,10 +66,10 @@ describe('POST /api/accounts/:id/fund', () => {
   });
 });
 
-describe('POST /api/accounts/:id/withdraw', () => {
+describe('POST /api/transactions/:id/withdraw', () => {
   it('returns 400 without calling the service when the PIN is missing', async () => {
     const response = await request(app)
-      .post(`/api/accounts/${accountId}/withdraw`)
+      .post(`/api/transactions/${accountId}/withdraw`)
       .set('Authorization', 'Bearer valid-token')
       .send({ amount: '10.00' });
 
@@ -84,7 +84,7 @@ describe('POST /api/accounts/:id/withdraw', () => {
     });
 
     const response = await request(app)
-      .post(`/api/accounts/${accountId}/withdraw`)
+      .post(`/api/transactions/${accountId}/withdraw`)
       .set('Authorization', 'Bearer valid-token')
       .send({ amount: '10.00', pin: '1234' });
 
@@ -105,7 +105,7 @@ describe('POST /api/accounts/:id/withdraw', () => {
     );
 
     const response = await request(app)
-      .post(`/api/accounts/${accountId}/withdraw`)
+      .post(`/api/transactions/${accountId}/withdraw`)
       .set('Authorization', 'Bearer valid-token')
       .send({ amount: '10000.00', pin: '1234' });
 
@@ -116,10 +116,10 @@ describe('POST /api/accounts/:id/withdraw', () => {
   });
 });
 
-describe('POST /api/accounts/:id/transfer', () => {
+describe('POST /api/transactions/:id/transfer', () => {
   it('returns 400 without calling the service for an invalid destination account number', async () => {
     const response = await request(app)
-      .post(`/api/accounts/${accountId}/transfer`)
+      .post(`/api/transactions/${accountId}/transfer`)
       .set('Authorization', 'Bearer valid-token')
       .send({ amount: '10.00', pin: '1234', destinationAccountNumber: '123' });
 
@@ -134,7 +134,7 @@ describe('POST /api/accounts/:id/transfer', () => {
     });
 
     const response = await request(app)
-      .post(`/api/accounts/${accountId}/transfer`)
+      .post(`/api/transactions/${accountId}/transfer`)
       .set('Authorization', 'Bearer valid-token')
       .send({ amount: '10.00', pin: '1234', destinationAccountNumber: '9876543210' });
 
@@ -151,12 +151,12 @@ describe('POST /api/accounts/:id/transfer', () => {
   });
 });
 
-describe('GET /api/accounts/:id/transactions', () => {
+describe('GET /api/transactions/:id', () => {
   it('lists transactions for an owned account', async () => {
     mockedTransactionService.listTransactions.mockResolvedValue([transactionRecord]);
 
     const response = await request(app)
-      .get(`/api/accounts/${accountId}/transactions`)
+      .get(`/api/transactions/${accountId}`)
       .set('Authorization', 'Bearer valid-token');
 
     expect(response.status).toBe(HTTP.OK);
