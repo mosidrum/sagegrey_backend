@@ -1,6 +1,6 @@
-# sagegrey-backend
+# GoMe API
 
-Minimal Node.js + TypeScript + Express backend.
+A Node.js + TypeScript + Express banking API: authentication, bank accounts, funding, withdrawals, transfers, and a transaction-PIN security layer, backed by PostgreSQL/Knex.
 
 ## Prerequisites
 
@@ -60,14 +60,17 @@ npm run migrate
 
 The app is layered under `src/`, each folder with a single responsibility:
 
-- **`routes/`** — Express route wiring only (which path/method calls which controller). No logic.
-- **`controllers/`** — request handlers: parse/validate the request, call a service, shape the response via `res.success(...)`. No direct DB access.
-- **`services/`** — business logic (hashing, token generation, uniqueness rules). Return plain data or throw `AppError`; never touch `res`.
-- **`repositories/`** — data access only, one per table, raw Knex queries (`create`, `get`, `getById`, `update`, `remove`, `save`, plus domain lookups like `findByEmail`). No business rules.
+- **`routes/`** — Express route wiring only (which path/method, which validators, which controller). No logic.
+- **`middleware/validators/`** — `express-validator` chains per domain, ending in a shared `runValidation` middleware that turns validation failures into an `AppError(400, ...)`. Routes chain these directly in front of the controller, so controllers never parse/validate the request themselves.
+- **`controllers/`** — request handlers: read the already-validated `req.body`/`req.params`, call a service, shape the response via `res.success(...)`. No direct DB access, no validation logic.
+- **`services/`** — business logic (hashing, token/account-number generation, balance arithmetic, ownership/lock/PIN checks, DB transactions). Return plain data or throw `AppError`; never touch `res`.
+- **`repositories/`** — data access only, one per table, raw Knex queries (`create`, `getById`, `update`, plus domain lookups). Account/transaction repositories accept an optional Knex transaction (`trx`) so services can wrap multi-step money movements atomically. No business rules.
 - **`models/`** — plain TypeScript interfaces for DB rows (Knex is a query builder, not a decorator-based ORM, so there are no class-based entities).
 - **`middleware/`** — Express middleware: security headers/CORS/rate limiting, the response-shape attacher, the global error handler, and `authenticate`.
 - **`database/`** — Knex instance, `knexfile.ts`, and migrations.
-- **`common/`** — cross-cutting infrastructure used by every layer: `AppError`, `asyncHandler`, the logger, and `http.ts`'s `HTTP` status constants.
+- **`common/`** — cross-cutting infrastructure used by every layer: `AppError`, `asyncHandler`, the logger, `http.ts`'s `HTTP` status constants, and `money.ts`/`accountNumber.ts` helpers.
+
+The domain has two aggregate models — **User** and **Account** (one user has many accounts) — and business logic is organized along that line: `auth.*` (signup/login/logout/me) and `user.*` (transaction PIN) operate on the User model; `account.*` (create/list/balance/lock) and `transaction.*` (fund/withdraw/transfer) operate on the Account model.
 
 ## Error handling & responses
 
@@ -77,18 +80,45 @@ For success responses, call `res.success(data, message?, statusCode?)` (attached
 
 ## Database
 
-`src/database/connection.ts` exports the shared Knex instance (`db`) used by repositories, and `verifyConnection()`, which opens and immediately closes a plain `pg` connection (no query) to confirm Postgres is reachable. `server.ts` awaits this before calling `app.listen`, logging `Database connection established` first — if it fails, the error is logged and the process exits instead of starting an API that can't reach its database. `src/database/knexfile.ts` holds the Knex config, and `src/database/migrations/` the migrations.
+`src/database/connection.ts` exports the shared Knex instance (`db`) used by repositories, and `verifyConnection()`, which opens and immediately closes a plain `pg` connection (no query) to confirm Postgres is reachable. `server.ts` awaits this before calling `app.listen`, logging `Database connection established` first — if it fails, the error is logged and the process exits instead of starting an API that can't reach its database. `src/database/knexfile.ts` holds the Knex config (loading `.env` by absolute path, so it works regardless of the CLI's working directory), and `src/database/migrations/` the migrations.
+
+Two databases share the same Postgres instance: `app` (dev, `DB_NAME` in `.env`) and `app_test` (used by `npm test`, see [Tests](#tests)).
 
 ## Authentication
 
 Opaque token-based auth against the `users` table, split across the layers above (`routes/auth.routes.ts` → `controllers/auth.controller.ts` → `services/auth.service.ts` → `repositories/user.repository.ts`):
 
-- `POST /api/auth/signup` — `{ email, password }` (password min. 8 chars). Creates the user and returns `{ user, token }`, i.e. signup logs the user in immediately.
+- `POST /api/auth/signup` — `{ fullName, email, password }` (password min. 8 chars). Creates the user and returns `{ user, token }`, i.e. signup logs the user in immediately.
 - `POST /api/auth/login` — `{ email, password }`. Validates the bcrypt-hashed password and issues a new token (replacing any previous one, so logging in elsewhere invalidates the old session).
 - `POST /api/auth/logout` — requires `Authorization: Bearer <token>`. Clears the stored token.
 - `GET /api/auth/me` — requires `Authorization: Bearer <token>`. Returns the current user.
 
 Tokens are random 32-byte values stored directly on the user row (no JWT signing/expiry — deliberately simple). `authenticate` (`src/middleware/auth.middleware.ts`) looks the token up and attaches `req.user`; protected routes just add it before their handler.
+
+## Transaction PIN (`services/user.service.ts`)
+
+A 4-digit PIN, distinct from the login password, required before any withdrawal or transfer. It's a property of the User model, so it lives in its own `user.*` layer rather than in `auth.*` or `account.*`:
+
+- `PUT /api/users/pin` — requires `Authorization: Bearer <token>` and `{ pin }`. If a PIN is already set, `{ pin, currentPin }` is required and `currentPin` is verified before the change. Hashed with bcrypt; never stored or returned in plain text.
+
+Withdrawals and transfers call `userService.verifyPin` before touching any balance — it throws a clear "set your PIN first" error if unset, or "incorrect PIN" on mismatch. Funding and balance checks never require a PIN.
+
+## Bank accounts & transactions (`services/account.service.ts`, `services/transaction.service.ts`)
+
+- `POST /api/accounts` — creates a bank account for the caller with a unique 10-digit account number and a zero balance.
+- `GET /api/accounts` — lists the caller's own accounts.
+- `GET /api/accounts/:id/balance` — returns the balance of an account the caller owns (403 otherwise).
+- `POST /api/accounts/:id/lock` / `POST /api/accounts/:id/unlock` — locks/unlocks an owned account. Locked accounts reject all debits (withdrawals, transfers out) but still accept credits (funding, incoming transfers).
+- `POST /api/accounts/:id/fund` — `{ amount, description? }`. Credits any account by id (no ownership check — crediting is unrestricted, same as a transfer's destination); no PIN required.
+- `POST /api/accounts/:id/withdraw` — `{ amount, pin, description? }`. Debits an account the caller owns; requires the correct PIN, an unlocked account, and sufficient funds.
+- `POST /api/accounts/:id/transfer` — `{ destinationAccountNumber, amount, pin, description? }`. One endpoint handles both same-user and cross-user transfers — the destination is looked up by account number, regardless of who owns it.
+- `GET /api/accounts/:id/transactions` — lists the transaction history for an owned account.
+
+**Money** is stored as integer minor units (`bigint` columns, e.g. cents) and converted via `src/common/money.ts`'s string-based `toMinorUnits`/`fromMinorUnits` — never floating-point arithmetic. The API accepts/returns amounts as decimal strings (e.g. `"100.50"`).
+
+**Atomicity & concurrency**: every balance-mutating operation runs inside a Knex `db.transaction(...)`, row-locking the account(s) involved with `.forUpdate()`. Transfers lock both the source and destination accounts in a single query ordered by ascending `id`, which rules out deadlocks between two transfers moving money in opposite directions between the same pair of accounts. If any step fails, the whole transaction rolls back and no partial balance change is persisted.
+
+**Transaction ledger**: every funding/withdrawal/transfer writes to the `transactions` table (id, type, account, counterparty account, amount, balance after, description, status, timestamp). A transfer writes two linked rows — `transfer_debit` on the source, `transfer_credit` on the destination — sharing one `transfer_group_id`, so "all transactions for account X" is always a simple `WHERE account_id = X` query regardless of operation type.
 
 ## Security
 
@@ -101,6 +131,8 @@ Tokens are random 32-byte values stored directly on the user row (no JWT signing
 ## Logging
 
 `src/common/logger.ts` is a Winston logger with custom uppercase levels (`ERROR`, `WARN`, `INFO`, `DEBUG` — call as `logger.ERROR(...)`, `logger.INFO(...)`, etc.), colorized console output, and a timestamp. The minimum level is `DEBUG` outside of `NODE_ENV=production`, `INFO` in production.
+
+Pass structured context as a second argument — `logger.INFO('Account funded', { userId, accountId, amount, transactionId })` — and it's rendered as JSON after the message. Never pass `password`, `password_hash`, `pin`, `pin_hash`, or `token` as context. The global `errorHandler` logs every 4xx at `WARN` and every 5xx at `ERROR`; services additionally log `DEBUG`/`INFO`/`ERROR` around each DB transaction (start/commit/rollback) for money-moving operations.
 
 ## Build & start (production)
 
@@ -115,6 +147,13 @@ npm start
 npm test
 npm run test:watch
 ```
+
+`npm test` runs against a separate `app_test` database (`DB_NAME=app_test`), migrated automatically by a `pretest` hook — it never touches the dev `app` database. Tests run with `--runInBand` (serially) since several suites share and `TRUNCATE` that same database between tests; running them in parallel workers would race. There are two kinds of test:
+
+- **Controller tests** (`tests/*.controller.test.ts`) — Supertest against the real Express app with the service layer mocked (`jest.mock('../src/services/...')`). Validators run for real, so these also exercise the `express-validator` chains end-to-end.
+- **Service integration tests** (`tests/services/*.test.ts`) — hit the real `app_test` Postgres database to verify things a mock can't: atomic rollback on failure, row-level locking (`FOR UPDATE`) preventing a locked/insufficient-funds account from being double-debited, and correct balance math.
+
+Since Postgres needs to be reachable, run `npm test` inside the container (`docker compose exec gome-api npm test`) rather than on the bare host, unless you've overridden `DB_HOST=localhost` locally.
 
 ## Linting & formatting
 
@@ -133,33 +172,66 @@ npm run format
 │   ├── server.ts                 # Entry point, starts the HTTP server
 │   ├── common/
 │   │   ├── http.ts                 # HTTP status constants
-│   │   ├── logger.ts               # Winston logger (uppercase levels)
+│   │   ├── logger.ts               # Winston logger (uppercase levels, structured context)
 │   │   ├── errors.ts               # AppError
-│   │   └── asyncHandler.ts         # Wraps async route handlers for error propagation
+│   │   ├── asyncHandler.ts         # Wraps async route handlers for error propagation
+│   │   ├── money.ts                # Decimal-string <-> integer-minor-units conversion
+│   │   └── accountNumber.ts        # Random 10-digit account number generation
 │   ├── database/
 │   │   ├── connection.ts           # Knex instance + startup connection check
 │   │   ├── knexfile.ts             # Knex configuration for PostgreSQL
 │   │   └── migrations/
-│   │       └── ..._create_users_table.ts
+│   │       ├── ..._create_users_table.ts
+│   │       ├── ..._add_full_name_to_users_table.ts
+│   │       ├── ..._add_pin_hash_to_users_table.ts
+│   │       ├── ..._create_accounts_table.ts
+│   │       └── ..._create_transactions_table.ts
 │   ├── middleware/
 │   │   ├── security.ts             # helmet, cors, rate limiting
 │   │   ├── response.ts             # Attaches res.success() for consistent responses
 │   │   ├── errorHandler.ts         # Global error handler + 404 handler
-│   │   └── auth.middleware.ts      # authenticate — attaches req.user
+│   │   ├── auth.middleware.ts      # authenticate — attaches req.user
+│   │   └── validators/
+│   │       ├── validate.ts           # runValidation — turns validation errors into AppError
+│   │       ├── auth.validators.ts    # signup/login validation chains
+│   │       ├── user.validators.ts    # setPin validation chain
+│   │       ├── account.validators.ts # :id param validation
+│   │       └── transaction.validators.ts # fund/withdraw/transfer validation chains
 │   ├── models/
-│   │   └── user.model.ts           # User / SafeUser / NewUser types
+│   │   ├── user.model.ts           # User / SafeUser / NewUser types
+│   │   ├── account.model.ts        # Account / NewAccount types
+│   │   └── transaction.model.ts    # Transaction / NewTransaction types
 │   ├── repositories/
-│   │   └── user.repository.ts      # Raw Knex queries for the users table
+│   │   ├── user.repository.ts      # Raw Knex queries for the users table
+│   │   ├── account.repository.ts   # Raw Knex queries for the accounts table (trx-aware)
+│   │   └── transaction.repository.ts # Raw Knex queries for the transactions table (trx-aware)
 │   ├── services/
-│   │   └── auth.service.ts         # signup/login/logout/findByToken business logic
+│   │   ├── auth.service.ts         # signup/login/logout/findByToken business logic
+│   │   ├── user.service.ts         # Transaction PIN set/verify (User model)
+│   │   ├── account.service.ts      # Create/list/balance/lock (Account model)
+│   │   └── transaction.service.ts  # fund/withdraw/transfer — atomic, row-locked
 │   ├── controllers/
-│   │   └── auth.controller.ts      # /api/auth/* request handlers
+│   │   ├── auth.controller.ts      # /api/auth/* request handlers
+│   │   ├── user.controller.ts      # /api/users/* request handlers
+│   │   ├── account.controller.ts   # /api/accounts/* (CRUD/lock/balance) request handlers
+│   │   └── transaction.controller.ts # /api/accounts/* (fund/withdraw/transfer) request handlers
 │   └── routes/
 │       ├── index.ts                # Root router — GET / + mounts feature routers
-│       └── auth.routes.ts          # /api/auth/* route wiring
+│       ├── auth.routes.ts          # /api/auth/* route wiring
+│       ├── user.routes.ts          # /api/users/* route wiring
+│       ├── account.routes.ts       # /api/accounts/* route wiring
+│       └── transaction.routes.ts   # /api/accounts/*/fund|withdraw|transfer route wiring
 ├── tests
-│   ├── app.test.ts               # Integration tests (GET /, 404, security headers)
-│   └── auth.controller.test.ts   # Controller tests (service layer mocked)
+│   ├── app.test.ts                   # Integration tests (GET /, 404, security headers)
+│   ├── auth.controller.test.ts       # Controller tests (service layer mocked)
+│   ├── user.controller.test.ts
+│   ├── account.controller.test.ts
+│   ├── transaction.controller.test.ts
+│   ├── setup/testDb.ts               # Real Knex instance + resetDb() for integration tests
+│   └── services/                     # Integration tests against a real Postgres app_test DB
+│       ├── user.service.test.ts
+│       ├── account.service.test.ts
+│       └── transaction.service.test.ts
 ├── Dockerfile
 ├── docker-compose.yml
 ```
