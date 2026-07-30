@@ -106,7 +106,6 @@ describe('POST /api/accounts/:id/withdraw', () => {
     expect(response.status).toBe(HTTP.BAD_REQUEST);
     expect(response.body).toEqual({
       message: 'Insufficient funds to complete this transaction.',
-      data: null,
     });
   });
 });

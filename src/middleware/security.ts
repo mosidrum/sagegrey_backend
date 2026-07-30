@@ -16,5 +16,5 @@ export const rateLimiter = rateLimit({
   limit: 100,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: 'Too many requests, please try again later.', data: null },
+  message: { message: 'Too many requests, please try again later.' },
 });

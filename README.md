@@ -76,7 +76,7 @@ The domain has two aggregate models — **User** and **Account** (one user has m
 
 Route handlers should throw `AppError(statusCode, message)` (from `src/common/errors.ts`) instead of building error responses by hand — use the named constants in `src/common/http.ts` (`HTTP.NOT_FOUND`, `HTTP.UNAUTHORIZED`, etc.) rather than raw numbers. A global `errorHandler` (`src/middleware/errorHandler.ts`) catches it and any other thrown error, and unmatched routes are turned into 404s by `notFoundHandler`. Wrap async handlers with `asyncHandler` (`src/common/asyncHandler.ts`) so rejected promises reach it.
 
-For success responses, call `res.success(data, message?, statusCode?)` (attached by `src/middleware/response.ts`). Every JSON response, success or error, follows the same `{ message, data }` shape.
+For success responses, call `res.success(data, message?, statusCode?)` (attached by `src/middleware/response.ts`). Every JSON response is `{ message }`, plus a `data` field only when there's actually a payload to return — success responses include it whenever `data` is passed; error responses never include it, since `AppError` doesn't carry a payload.
 
 ## Database
 

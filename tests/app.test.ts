@@ -19,7 +19,6 @@ describe('GET /unknown-route', () => {
     expect(response.status).toBe(HTTP.NOT_FOUND);
     expect(response.body).toEqual({
       message: 'Route not found: GET /unknown-route',
-      data: null,
     });
   });
 });

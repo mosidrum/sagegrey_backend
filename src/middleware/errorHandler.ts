@@ -17,5 +17,5 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
     logger.WARN(`${req.method} ${req.originalUrl} -> ${statusCode}: ${message}`);
   }
 
-  res.status(statusCode).json({ message, data: null });
+  res.status(statusCode).json({ message });
 }

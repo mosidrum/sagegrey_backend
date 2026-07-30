@@ -65,7 +65,6 @@ describe('PUT /api/users/pin', () => {
     expect(response.status).toBe(HTTP.UNAUTHORIZED);
     expect(response.body).toEqual({
       message: 'Your current transaction PIN is incorrect.',
-      data: null,
     });
   });
 });

@@ -94,7 +94,7 @@ describe('POST /api/auth/login', () => {
       .send({ email: 'test@example.com', password: 'wrongpassword' });
 
     expect(response.status).toBe(HTTP.UNAUTHORIZED);
-    expect(response.body).toEqual({ message: 'Invalid email or password', data: null });
+    expect(response.body).toEqual({ message: 'Invalid email or password' });
   });
 });
 
