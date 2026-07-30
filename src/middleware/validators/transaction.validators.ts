@@ -10,10 +10,7 @@ function isPositiveAmount(value: string): boolean {
   return BigInt(wholePart) > 0n || BigInt(fractionPart) > 0n;
 }
 
-const accountIdParam = param('id')
-  .isInt({ min: 1 })
-  .withMessage('A valid account id is required.')
-  .toInt();
+const accountIdParam = param('id').isUUID().withMessage('A valid account id is required.');
 
 const amountBody = body('amount')
   .matches(AMOUNT_PATTERN)
